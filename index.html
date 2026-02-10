@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦞 OpenClaw Monitor</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --text-primary: #c9d1d9;
+      --text-secondary: #8b949e;
+      --accent-red: #f85149;
+      --accent-green: #3fb950;
+      --accent-blue: #58a6ff;
+      --accent-yellow: #d29922;
+      --accent-purple: #a371f7;
+      --border: #30363d;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #f85149 0%, #a371f7 100%);
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .model-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .model-selector label {
+      font-weight: 500;
+    }
+
+    .model-select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      min-width: 200px;
+      transition: all 0.2s;
+    }
+
+    .model-select:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .model-select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
+    }
+
+    .model-select option {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.disconnected {
+      background: var(--accent-red);
+      animation: none;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      /* 60% / 40% ratio */
+      gap: 1.5rem;
+      padding: 1rem;
+      height: calc(100vh - 120px);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: var(--bg-tertiary);
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-content {
+      padding: 1rem;
+      height: calc(100% - 45px);
+      overflow-y: auto;
+    }
+
+    /* Log entries */
+    .logs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .log-entry {
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8rem;
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .log-entry.DEBUG {
+      border-left-color: var(--text-secondary);
+    }
+
+    .log-entry.INFO {
+      border-left-color: var(--accent-blue);
+    }
+
+    .log-entry.WARN {
+      border-left-color: var(--accent-yellow);
+    }
+
+    .log-entry.ERROR {
+      border-left-color: var(--accent-red);
+    }
+
+    .log-message {
+      color: var(--text-secondary);
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      word-break: break-word;
+      max-height: 100px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: max-height 0.3s ease;
+    }
+
+    .log-message.expanded {
+      max-height: none;
+    }
+
+    .log-message:hover::after {
+      content: '点击展开/折叠';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      color: var(--accent-blue);
+      border-radius: 4px;
+    }
+
+    /* Message entries */
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .message-entry {
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .message-entry.user-msg {
+      border-left: 3px solid var(--accent-blue);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .message-entry.assistant-msg {
+      border-left: 3px solid var(--accent-green);
+      background: rgba(63, 185, 80, 0.1);
+    }
+
+    .stat-card.warning {
+      border-left: 4px solid var(--accent-orange);
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent-blue);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      padding: 1rem;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 300px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .notification.warn {
+      border-left-color: var(--accent-orange);
+    }
+
+    .notification-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .notification-msg {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .msg-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+      font-size: 0.75rem;
+    }
+
+    .msg-role {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .msg-time {
+      color: var(--text-secondary);
+    }
+
+    .msg-content {
+      color: var(--text-primary);
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .msg-content:hover {
+      opacity: 0.8;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+    }
+
+    .log-level {
+      font-weight: 600;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      background: var(--bg-primary);
+    }
+
+    .log-message {
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    /* Session info */
+    .session-card {
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .session-title {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--accent-blue);
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+    }
+
+    .stat-value {
+      font-weight: 500;
+    }
+
+    .stat-value.model {
+      color: var(--accent-purple);
+    }
+
+    .stat-value.tokens {
+      color: var(--accent-green);
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-blue);
+    }
+
+    .btn.active {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+
+    /* Filter buttons */
+    .filter-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+
+    .filter-btn {
+      padding: 0.4rem 0.8rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent-blue);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+    /* Search input */
+    .search-box {
+      position: relative;
+      margin-bottom: 0.5rem;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.5rem 2rem 0.5rem 0.8rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* Performance stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      background: var(--bg-tertiary);
+      padding: 0.8rem;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-unit {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-left: 0.2rem;
+    }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 300px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🦞 OpenClaw Monitor</h1>
+    <div class="model-selector">
+      <label for="modelSelect">🤖 模型:</label>
+      <select id="modelSelect" class="model-select">
+        <option value="">加载中...</option>
+      </select>
+    </div>
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">连接中...</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="panel">
+      <div class="panel-header">
+        <span>📋 实时日志</span>
+        <div class="controls">
+          <button class="btn active" id="autoScroll">自动滚动</button>
+          <button class="btn" id="clearLogs">清空</button>
+          <button class="btn" id="exportLogs">导出</button>
+        </div>
+      </div>
+
+      <!-- Search box -->
+      <div class="search-box">
+        <input type="text" class="search-input" id="searchInput" placeholder="🔍 搜索日志...">
+        <button class="search-clear" id="searchClear" style="display:none;">✕</button>
+      </div>
+
+      <!-- Filter buttons -->
+      <div class="filter-group">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="INFO">INFO</button>
+        <button class="filter-btn" data-filter="WARN">WARN</button>
+        <button class="filter-btn" data-filter="ERROR">ERROR</button>
+        <button class="filter-btn" data-filter="agent">🚀 Agent</button>
+        <button class="filter-btn" data-filter="tool">🔧 工具</button>
+        <button class="filter-btn" data-filter="browser">🌐 浏览器</button>
+        <button class="filter-btn" data-filter="telegram">📨 Telegram</button>
+      </div>
+
+      <div class="panel-content" id="logsContainer">
+        <div class="logs" id="logs">
+          <div class="empty">等待日志...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>⚡ 性能监控</span>
+        <button class="btn" id="refreshStats">刷新</button>
+      </div>
+      <div class="panel-content">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">平均响应时间</div>
+            <div class="stat-value" id="avgResponseTime">--<span class="stat-unit">ms</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Token 速率</div>
+            <div class="stat-value" id="tokenRate">--<span class="stat-unit">tok/s</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">守护状态</div>
+            <div class="stat-value" id="watchdogStatus" style="font-size: 1.2rem; color: var(--accent-green);">在线</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">总请求数</div>
+            <div class="stat-value" id="totalRequests">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">错误计数</div>
+            <div class="stat-value" id="errorCount" style="color: var(--accent-red);">--</div>
+          </div>
+        </div>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button class="btn" id="refreshStats" style="flex: 1;">刷新数据</button>
+          <button class="btn btn-danger" id="systemRestart" style="flex: 1;">系统全重启</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>💬 模型通讯</span>
+        <button class="btn" id="refreshMessages">刷新</button>
+      </div>
+      <div class="panel-content" id="messagesContainer" style="max-height: 300px;">
+        <div class="messages" id="messages">
+          <div class="empty">加载通讯记录...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>📊 会话状态</span>
+        <button class="btn" id="refreshSession">刷新</button>
+      </div>
+      <div class="panel-content" id="sessionContainer">
+        <div class="empty">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logsEl = document.getElementById('logs');
+    const logsContainer = document.getElementById('logsContainer');
+    const sessionContainer = document.getElementById('sessionContainer');
+    const messagesEl = document.getElementById('messages');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const autoScrollBtn = document.getElementById('autoScroll');
+    const clearLogsBtn = document.getElementById('clearLogs');
+    const modelSelect = document.getElementById('modelSelect');
+
+    let autoScroll = true;
+    let logCount = 0;
+    const MAX_LOGS = 200;
+
+    // Filter and search state
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let allLogs = []; // Store all logs for filtering
+
+    // Performance stats
+    let stats = {
+      totalRequests: 0,
+      errorCount: 0,
+      responseTimes: [],
+      tokenCounts: []
+    };
+
+    // Load available models
+    async function loadModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+
+        modelSelect.innerHTML = '';
+        data.models.forEach(model => {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = `${model.name} (${model.provider})`;
+          if (model.id === data.currentPrimary) {
+            option.selected = true;
+          }
+          modelSelect.appendChild(option);
+        });
+      } catch (e) {
+        console.error('Failed to load models:', e);
+        modelSelect.innerHTML = '<option value="">加载失败</option>';
+      }
+    }
+
+    // Handle model switch
+    modelSelect.addEventListener('change', async (e) => {
+      const newModelId = e.target.value;
+      if (!newModelId) return;
+
+      if (!confirm(`确定要切换到模型 "${e.target.options[e.target.selectedIndex].text}" 吗？\n\n切换后需要重启 Gateway 才能生效。`)) {
+        loadModels(); // Reload to reset selection
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/model/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modelId: newModelId })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert(`✅ 模型已切换并自动重启 Gateway！\n\n旧模型: ${result.oldModel}\n新模型: ${result.newModel}\n\nGateway 正在后台重启，请稍等几秒...`);
+          // Reload models after a delay to show updated state
+          setTimeout(loadModels, 3000);
+        } else {
+          alert(`❌ 切换失败: ${result.error}`);
+          loadModels();
+        }
+      } catch (e) {
+        alert(`❌ 切换失败: ${e.message}`);
+        loadModels();
+      }
+    });
+
+    // Load models on page load
+    loadModels();
+
+    // WebSocket connection
+    function connect() {
+      const ws = new WebSocket(`ws://${location.host}`);
+
+      ws.onopen = () => {
+        statusDot.classList.remove('disconnected');
+        statusText.textContent = '已连接';
+      };
+
+      ws.onclose = () => {
+        statusDot.classList.add('disconnected');
+        statusText.textContent = '已断开 - 重连中...';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        statusDot.classList.add('disconnected');
+        statusText.textContent = '连接错误';
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'log') {
+          addLog(msg.data);
+        } else if (msg.type === 'session') {
+          updateSession(msg.data);
+        } else if (msg.type === 'messages') {
+          updateMessages(msg.data);
+        } else if (msg.type === 'notification') {
+          showNotification(msg.data.title, msg.data.message, msg.data.level);
+        }
+      };
+    }
+
+    function addLog(log) {
+      // Store log for filtering
+      allLogs.push(log);
+      if (allLogs.length > MAX_LOGS) {
+        allLogs.shift();
+      }
+
+      // Track performance stats
+      if (log.label && log.label.includes('Agent 开始')) {
+        stats.totalRequests++;
+      }
+      if (log.level === 'ERROR') {
+        stats.errorCount++;
+      }
+
+      // Check if log matches current filter and search
+      if (!matchesFilter(log) || !matchesSearch(log)) {
+        updateStatsDisplay(); // Still update stats even if not displayed
+        return;
+      }
+
+      // Remove empty state if present
+      const empty = logsEl.querySelector('.empty');
+      if (empty) empty.remove();
+
+      // Create log entry
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${log.level}`;
+      entry.dataset.label = log.label || '';
+      entry.dataset.level = log.level;
+      entry.dataset.message = log.message;
+
+      const time = new Date(log.time).toLocaleTimeString('zh-CN');
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'log-message';
+      messageDiv.textContent = log.message;
+
+      // Add click to expand/collapse
+      messageDiv.onclick = function () {
+        this.classList.toggle('expanded');
+      };
+
+      entry.innerHTML = `
+        <div class="log-header">
+          <span><strong style="color: var(--accent-green)">${log.label || '📋 日志'}</strong> | ${time}</span>
+          <span class="log-level">${log.level}</span>
+        </div>
+      `;
+      entry.appendChild(messageDiv);
+
+      logsEl.appendChild(entry);
+      logCount++;
+
+      // Limit log entries
+      while (logCount > MAX_LOGS) {
+        logsEl.firstChild?.remove();
+        logCount--;
+      }
+
+      // Auto scroll
+      if (autoScroll) {
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+      }
+
+      // Update stats display
+      updateStatsDisplay();
+    }
+
+    function matchesFilter(log) {
+      if (currentFilter === 'all') return true;
+      if (currentFilter === 'INFO' || currentFilter === 'WARN' || currentFilter === 'ERROR') {
+        return log.level === currentFilter;
+      }
+      if (currentFilter === 'agent') {
+        return (log.label || '').includes('Agent');
+      }
+      if (currentFilter === 'tool') {
+        return (log.label || '').includes('工具');
+      }
+      if (currentFilter === 'browser') {
+        return (log.label || '').includes('浏览器');
+      }
+      if (currentFilter === 'telegram') {
+        return (log.label || '').includes('Telegram') || (log.subsystem || '').includes('telegram');
+      }
+      return true;
+    }
+
+    function matchesSearch(log) {
+      if (!searchQuery) return true;
+      const text = `${log.label} ${log.message}`.toLowerCase();
+      return text.includes(searchQuery.toLowerCase());
+    }
+
+    function applyFilters() {
+      // Clear current display
+      logsEl.innerHTML = '';
+      logCount = 0;
+
+      // Re-add filtered logs
+      allLogs.forEach(log => {
+        if (matchesFilter(log) && matchesSearch(log)) {
+          addLogToDOM(log);
+        }
+      });
+
+      if (logCount === 0) {
+        logsEl.innerHTML = '<div class="empty">无匹配日志</div>';
+      }
+    }
+
+    function addLogToDOM(log) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${log.level}`;
+      entry.dataset.label = log.label || '';
+      entry.dataset.level = log.level;
+
+      const time = new Date(log.time).toLocaleTimeString('zh-CN');
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'log-message';
+      messageDiv.textContent = log.message;
+      messageDiv.onclick = function () {
+        this.classList.toggle('expanded');
+      };
+
+      entry.innerHTML = `
+        <div class="log-header">
+          <span><strong style="color: var(--accent-green)">${log.label || '📋 日志'}</strong> | ${time}</span>
+          <span class="log-level">${log.level}</span>
+        </div>
+      `;
+      entry.appendChild(messageDiv);
+
+      logsEl.appendChild(entry);
+      logCount++;
+    }
+
+    function updateStatsDisplay() {
+      document.getElementById('totalRequests').textContent = stats.totalRequests;
+      document.getElementById('errorCount').textContent = stats.errorCount;
+
+      // Calculate average response time (mock for now)
+      const avgTime = stats.responseTimes.length > 0
+        ? Math.round(stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length)
+        : 0;
+      document.getElementById('avgResponseTime').innerHTML = `${avgTime}<span class="stat-unit">ms</span>`;
+
+      // Calculate token rate (mock for now)
+      const tokenRate = stats.tokenCounts.length > 0
+        ? Math.round(stats.tokenCounts.reduce((a, b) => a + b, 0) / stats.tokenCounts.length)
+        : 0;
+      document.getElementById('tokenRate').innerHTML = `${tokenRate}<span class="stat-unit">tok/s</span>`;
+    }
+
+    function updateSession(data) {
+      if (!data.sessions || data.sessions.length === 0) {
+        sessionContainer.innerHTML = '<div class="empty">无活动会话</div>';
+        return;
+      }
+
+      let html = '';
+      data.sessions.forEach(session => {
+        const totalTokens = session.totalTokens || 0;
+        const inputTokens = session.inputTokens || 0;
+        const outputTokens = session.outputTokens || 0;
+        const contextTokens = session.contextTokens || 128000;
+        const contextUsed = Math.round((totalTokens / contextTokens) * 100);
+
+        html += `
+          <div class="session-card">
+            <div class="session-title">${session.key || 'Session'}</div>
+            <div class="stat-row">
+              <span class="stat-label">模型</span>
+              <span class="stat-value model">${session.model || 'unknown'}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Token 使用</span>
+              <span class="stat-value tokens">${totalTokens.toLocaleString()}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">输入/输出</span>
+              <span class="stat-value">${inputTokens.toLocaleString()} / ${outputTokens.toLocaleString()}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">上下文占用</span>
+              <span class="stat-value">${contextUsed}%</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">会话ID</span>
+              <span class="stat-value">${(session.sessionId || '').substring(0, 8)}...</span>
+            </div>
+          </div>
+        `;
+      });
+
+      sessionContainer.innerHTML = html;
+    }
+
+    function updateMessages(data) {
+      console.log('Updating messages:', data); // Debug log
+
+      if (!data.messages || data.messages.length === 0) {
+        messagesEl.innerHTML = '<div class="empty">暂无通讯记录</div>';
+        return;
+      }
+
+      let html = '';
+      data.messages.forEach(msg => {
+        const time = new Date(msg.time).toLocaleTimeString('zh-CN');
+        const isUser = msg.role === 'user';
+        const roleLabel = isUser ? '👤 用户' : '🤖 模型';
+        const roleClass = isUser ? 'user-msg' : 'assistant-msg';
+        const shortContent = escapeHtml(msg.content || '').substring(0, 300);
+        const fullContent = escapeHtml(msg.fullContent || msg.content || '');
+        const hasMore = (msg.fullContent || msg.content || '').length > 300;
+
+        html += `
+          <div class="message-entry ${roleClass}" data-full="${fullContent.replace(/"/g, '&quot;')}">
+            <div class="msg-header">
+              <span class="msg-role">${roleLabel}</span>
+              <span class="msg-time">${time}</span>
+            </div>
+            <div class="msg-content" onclick="this.classList.toggle('expanded'); this.textContent = this.classList.contains('expanded') ? this.parentElement.dataset.full : '${shortContent}${hasMore ? '...' : ''}'">
+              ${shortContent}${hasMore ? '...' : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      messagesEl.innerHTML = html;
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Button handlers
+    autoScrollBtn.onclick = () => {
+      autoScroll = !autoScroll;
+      autoScrollBtn.classList.toggle('active', autoScroll);
+    };
+
+    clearLogsBtn.onclick = () => {
+      logsEl.innerHTML = '<div class="empty">日志已清空</div>';
+      allLogs = [];
+      logCount = 0;
+      stats = { totalRequests: 0, errorCount: 0, responseTimes: [], tokenCounts: [] };
+      updateStatsDisplay();
+    };
+
+    // Filter button handlers
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        applyFilters();
+      };
+    });
+
+    // Search input handler
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+
+    searchInput.oninput = (e) => {
+      searchQuery = e.target.value;
+      searchClear.style.display = searchQuery ? 'block' : 'none';
+      applyFilters();
+    };
+
+    searchClear.onclick = () => {
+      searchInput.value = '';
+      searchQuery = '';
+      searchClear.style.display = 'none';
+      applyFilters();
+    };
+
+    // Export logs handler
+    document.getElementById('exportLogs').onclick = () => {
+      const data = allLogs.map(log => ({
+        time: log.time,
+        level: log.level,
+        label: log.label,
+        message: log.message
+      }));
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `openclaw-logs-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // Refresh stats handler
+    document.getElementById('refreshStats').onclick = () => {
+      updateStatsDisplay();
+    };
+
+    // Refresh messages handler
+    document.getElementById('refreshMessages').onclick = async () => {
+      try {
+        const res = await fetch('/api/messages');
+        const data = await res.json();
+        updateMessages(data);
+      } catch (e) {
+        console.error('Failed to refresh messages:', e);
+      }
+    };
+
+    // Refresh session handler
+    document.getElementById('refreshSession').onclick = async () => {
+      try {
+        const res = await fetch('/api/session');
+        const data = await res.json();
+        updateSession(data);
+      } catch (e) {
+        console.error('Failed to refresh session:', e);
+      }
+    };
+
+    // Auto-refresh messages and session every 10 seconds
+    setInterval(async () => {
+      try {
+        // Refresh messages
+        const messagesRes = await fetch('/api/messages');
+        const messagesData = await messagesRes.json();
+        updateMessages(messagesData);
+
+        // Refresh session
+        const sessionRes = await fetch('/api/session');
+        const sessionData = await sessionRes.json();
+        updateSession(sessionData);
+      } catch (e) {
+        console.error('Auto-refresh failed:', e);
+      }
+    }, 10000); // 10 seconds
+
+    // System restart handler
+    document.getElementById('systemRestart').onclick = async () => {
+      if (!confirm('确定要强行重启 OpenClaw Gateway 吗？这会中断当前正在运行的任务。')) return;
+
+      try {
+        const btn = document.getElementById('systemRestart');
+        btn.disabled = true;
+        btn.textContent = '正在重启...';
+
+        const res = await fetch('/api/system/restart', { method: 'POST' });
+        const data = await res.json();
+
+        showNotification('🚀 重启请求', 'Gateway 正在重启，请稍候...', 'WARN');
+
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '系统全重启';
+        }, 5000);
+      } catch (e) {
+        console.error('Restart failed:', e);
+        alert('重启失败: ' + e.message);
+      }
+    };
+
+    function showNotification(title, message, level = 'INFO') {
+      const container = document.getElementById('notifications') || createNotificationContainer();
+      const div = document.createElement('div');
+      div.className = `notification ${level.toLowerCase()}`;
+      div.innerHTML = `
+        <div class="notification-title">${title}</div>
+        <div class="notification-msg">${message}</div>
+      `;
+      container.appendChild(div);
+
+      setTimeout(() => {
+        div.style.opacity = '0';
+        div.style.transform = 'translateX(20px)';
+        div.style.transition = 'all 0.5s ease';
+        setTimeout(() => div.remove(), 500);
+      }, 5000);
+    }
+
+    function createNotificationContainer() {
+      const div = document.createElement('div');
+      div.id = 'notifications';
+      document.body.appendChild(div);
+      return div;
+    }
+
+    // Start connection
+    connect();
+  </script>
+</body>
+
+</html>

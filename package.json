@@ -1,0 +1,12 @@
+{
+    "name": "openclaw-monitor",
+    "version": "1.0.0",
+    "description": "Visual monitoring dashboard for OpenClaw",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "ws": "^8.16.0"
+    }
+}
