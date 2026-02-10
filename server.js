@@ -230,7 +230,7 @@ const Watchdog = {
     COOLDOWN: 5 * 60 * 1000, // 5 minutes
     THRESHOLD: 5,
     patterns: [
-        { id: 'telegram_fail', text: "Network request for 'getUpdates' failed!", label: 'Telegram 连接失败' },
+        { id: 'telegram_fail', text: "Network request for", label: 'Telegram 通讯故障' },
         { id: 'chrome_ext_fail', text: "Chrome extension relay is running, but no tab is connected", label: '浏览器扩展未连接' }
     ],
 
