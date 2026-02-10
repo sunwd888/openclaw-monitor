@@ -18,7 +18,7 @@ OpenClaw Monitor 是一款为 [OpenClaw](https://github.com/openclaw/openclaw) �
 
 ### 1. 克隆/下载本仓库
 ```bash
-git clone https://github.com/YourUsername/openclaw-monitor.git
+git clone https://github.com/sunwd888/openclaw-monitor.git
 cd openclaw-monitor
 ```
 
