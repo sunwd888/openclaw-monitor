@@ -34,7 +34,15 @@ npm start
 
 ### ⚙️ 高级配置 (环境变量)
 
-如果您的 OpenClaw 数据不在默认位置，可以使用环境变量启动：
+您可以直接在项目根目录下创建一个 `.env` 文件来管理配置（参考 `.env.example`）：
+
+```env
+PORT=18790
+OPENCLAW_HOME=/your/custom/path
+LOG_DIR=/your/log/path
+```
+
+或者在启动时通过命令行指定变量：
 
 | 变量 | 说明 | 默认值 |
 | :--- | :--- | :--- |
